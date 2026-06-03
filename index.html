@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Shooter</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <!-- HUD -->
+        <div id="hud">
+            <div id="hud-left">
+                <div id="hp-bar-container">
+                    <div id="hp-label">HP</div>
+                    <div id="hp-bar-bg"><div id="hp-bar-fill"></div></div>
+                    <span id="hp-text">100/100</span>
+                </div>
+            </div>
+            <div id="hud-right">
+                <div id="wave-display">WAVE 1</div>
+                <div id="score-display">SCORE: 0</div>
+            </div>
+            <div id="hud-bottom">
+                <div id="xp-bar-container">
+                    <div id="xp-label">XP</div>
+                    <div id="xp-bar-bg"><div id="xp-bar-fill"></div></div>
+                    <span id="xp-text">Lv.1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <div class="screen-content">
+                <h1 class="game-title">PIXEL SHOOTER</h1>
+                <div class="subtitle">Modular Edition</div>
+                <div class="instructions">
+                    <div>WASD / Arrow Keys to Move</div>
+                    <div>Mouse Aim · Left Click Shoot</div>
+                    <div>1-4 Switch Weapons · Kill Enemies · Level Up</div>
+                    <div>Enemies drop weapons and health packs</div>
+                </div>
+                <button id="start-btn" class="btn">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen hidden">
+            <div class="screen-content">
+                <h1 class="game-title dead">GAME OVER</h1>
+                <div id="final-score" class="stat">Score: 0</div>
+                <div id="final-wave" class="stat">Wave: 1</div>
+                <div id="final-stage" class="stat">Stage: 1</div>
+                <div id="final-level" class="stat">Level: 1</div>
+                <button id="restart-btn" class="btn">Try Again</button>
+            </div>
+        </div>
+
+        <!-- Upgrade Screen -->
+        <div id="upgrade-screen" class="screen hidden">
+            <div class="screen-content">
+                <h2 class="upgrade-title">Level Up!</h2>
+                <div class="upgrade-subtitle">Choose an upgrade</div>
+                <div id="upgrade-options" class="upgrade-options">
+                    <button class="upgrade-btn" data-index="0"></button>
+                    <button class="upgrade-btn" data-index="1"></button>
+                    <button class="upgrade-btn" data-index="2"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Replace Weapon Screen -->
+        <div id="replace-screen" class="screen hidden">
+            <div class="screen-content">
+                <h2 class="replace-title">Replace Weapon</h2>
+                <div class="replace-subtitle">Inventory full, choose a weapon to replace</div>
+                <div id="replace-options" class="replace-options"></div>
+                <button id="replace-cancel-btn" class="btn btn-small" style="margin-top:16px;">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Stage Complete Screen -->
+        <div id="stage-screen" class="screen hidden">
+            <div class="screen-content">
+                <h2 class="stage-title">Stage Complete!</h2>
+                <div id="stage-stats" class="stage-stats"></div>
+                <button id="next-stage-btn" class="btn">Next Stage</button>
+            </div>
+        </div>
+
+        <!-- Wave Announcement -->
+        <div id="wave-announce" class="hidden">WAVE 1</div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
