@@ -3,8 +3,6 @@ import { EventBus } from './EventBus.js';
 import { CombatSystem } from '../sys/combat/CombatSystem.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
-import { Bullet } from '../entities/Bullet.js';
-import { Explosion } from '../entities/Explosion.js';
 import { Pickup } from '../entities/Pickup.js';
 import { WeaponRegistry } from '../weapons/WeaponRegistry.js';
 import { ParticleSystem } from '../rendering/ParticleSystem.js';
@@ -12,8 +10,7 @@ import { Camera } from '../rendering/Camera.js';
 import { HUD } from '../ui/HUD.js';
 import { MenuManager } from '../ui/MenuManager.js';
 import { WaveManager } from '../spawn/WaveManager.js';
-import { DamageInstance } from '../sys/damage/DamageInstance.js';
-import { PHYSICAL } from '../sys/damage/damageTypes.js';
+import { EnemyTypeRegistry } from '../entities/enemyTypes/EnemyTypeRegistry.js';
 import { ConditionEvaluator } from '../sys/traits/ConditionEvaluator.js';
 
 export class Game {
@@ -168,17 +165,11 @@ export class Game {
       player.weapon.updateSpinner(player, worldState, dt);
     }
 
-    // Sniper shooting
-    for (const enemy of this.state.enemies) {
-      if (enemy.type === 'sniper' && enemy.alive && enemy.shootTimer <= 0) {
-        enemy.shootTimer = enemy.shootCooldown;
-        const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-        const dmgInst = new DamageInstance({
-          baseValue: enemy.damage,
-          typeContributions: [{ type: PHYSICAL, proportion: 1.0 }]
-        });
-        const eb = new Bullet(enemy.x, enemy.y, angle, 300, dmgInst, 'sniper');
-        this.state.addEnemyBullet(eb);
+    // Update enemies (movement, animation, type-specific AI)
+    if (player) {
+      for (const enemy of this.state.enemies) {
+        if (!enemy.alive) continue;
+        enemy.update(dt, player.x, player.y, this.state);
       }
     }
 
@@ -250,42 +241,29 @@ export class Game {
   }
 
   onEnemyDeath(enemy) {
-    const isBoss = enemy.type === 'boss';
+    const config = EnemyTypeRegistry.get(enemy.type);
+    const isBoss = config ? config.isBoss : false;
+
     this.particles.explosion(enemy.x, enemy.y, enemy.color, isBoss);
     this.state.score += enemy.xp;
     this.camera.shake(isBoss ? 10 : 3);
 
-    // Splitter spawn
-    if (enemy.type === 'splitter' && !enemy.hasSplit) {
-      enemy.hasSplit = true;
-      for (let k = 0; k < 2; k++) {
-        const angle = (Math.PI * 2 / 2) * k;
-        const s = new Enemy(
-          enemy.x + Math.cos(angle) * 20,
-          enemy.y + Math.sin(angle) * 20,
-          'basic', this.state.wave
-        );
-        s._size = 6;
-        s.stats.setBase('max_hp', Math.floor(enemy.maxHp * 0.3));
-        s.stats.setBase('hp', s.stats.get('max_hp'));
-        s._color = '#e91e63';
-        this.state.addEnemy(s);
-      }
+    // Type-specific death hook (splitter splitting, boss guaranteed drops, etc.)
+    if (config && config.onDeathFn) {
+      config.onDeathFn(enemy, {
+        spawnEnemy: (x, y, type, wave) => {
+          const e = new Enemy(x, y, type, wave || this.state.wave);
+          this.state.addEnemy(e);
+          return e;
+        },
+        spawnWeaponPickup: (x, y) => this._spawnWeaponPickup(x, y),
+        spawnEquipmentPickup: (x, y) => this._spawnEquipmentPickup(x, y),
+      });
     }
 
-    // Drops
-    if (isBoss) {
-      this._spawnWeaponPickup(enemy.x, enemy.y);
-      this._spawnEquipmentPickup(enemy.x, enemy.y);
-    } else {
-      const r = Math.random();
-      if (r < 0.08) {
-        this._spawnWeaponPickup(enemy.x, enemy.y);
-      } else if (r < 0.20) {
-        this.state.addPickup(new Pickup(enemy.x, enemy.y, 'health'));
-      } else if (r < 0.23) {
-        this._spawnEquipmentPickup(enemy.x, enemy.y);
-      }
+    // Default drop table for non-boss enemies
+    if (!isBoss) {
+      this._defaultDrop(enemy);
     }
 
     // XP
@@ -297,6 +275,17 @@ export class Game {
         this.upgradeOptions = player.getUpgradeOptions(3, Game._equipmentPool || []);
         this.menu.showUpgrade(this.upgradeOptions);
       }
+    }
+  }
+
+  _defaultDrop(enemy) {
+    const r = Math.random();
+    if (r < 0.08) {
+      this._spawnWeaponPickup(enemy.x, enemy.y);
+    } else if (r < 0.20) {
+      this.state.addPickup(new Pickup(enemy.x, enemy.y, 'health'));
+    } else if (r < 0.23) {
+      this._spawnEquipmentPickup(enemy.x, enemy.y);
     }
   }
 

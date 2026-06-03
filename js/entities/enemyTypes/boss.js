@@ -7,9 +7,16 @@ const config = new EnemyTypeConfig({
   color: '#9b59b6',
   size: 22,
   behavior: 'boss',
+  minWave: 5,
+  weight: 0,
+  isBoss: true,
   initFn(enemy) {
     enemy.bossPhase = 0;
     enemy.bossTimer = 0;
+  },
+  onDeathFn(enemy, ctx) {
+    ctx.spawnWeaponPickup(enemy.x, enemy.y);
+    ctx.spawnEquipmentPickup(enemy.x, enemy.y);
   },
   drawFn(enemy, ctx) {
     const s = enemy._size;

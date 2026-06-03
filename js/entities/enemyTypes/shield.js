@@ -7,6 +7,8 @@ const config = new EnemyTypeConfig({
   color: '#1abc9c',
   size: 13,
   behavior: 'chase',
+  minWave: 5,
+  weight: 1,
   statOverrides: {
     resistance_physical: { base: 0.1 },
   },

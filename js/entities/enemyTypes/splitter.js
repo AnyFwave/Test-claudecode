@@ -1,5 +1,6 @@
 import { EnemyTypeConfig } from './EnemyTypeConfig.js';
 import { EnemyTypeRegistry } from './EnemyTypeRegistry.js';
+import { Enemy } from '../Enemy.js';
 
 const config = new EnemyTypeConfig({
   typeId: 'splitter',
@@ -7,8 +8,29 @@ const config = new EnemyTypeConfig({
   color: '#e91e63',
   size: 11,
   behavior: 'chase',
+  minWave: 5,
+  weight: 1,
   initFn(enemy) {
     enemy.hasSplit = false;
+  },
+  onDeathFn(enemy, ctx) {
+    if (enemy.hasSplit) return;
+    enemy.hasSplit = true;
+    for (let k = 0; k < 2; k++) {
+      const angle = (Math.PI * 2 / 2) * k;
+      const s = ctx.spawnEnemy(
+        enemy.x + Math.cos(angle) * 20,
+        enemy.y + Math.sin(angle) * 20,
+        'basic',
+        enemy._wave
+      );
+      if (s) {
+        s._size = 6;
+        s.stats.setBase('max_hp', Math.floor(enemy.maxHp * 0.3));
+        s.stats.setBase('hp', s.stats.get('max_hp'));
+        s._color = '#e91e63';
+      }
+    }
   },
   drawFn(enemy, ctx) {
     const s = enemy._size;

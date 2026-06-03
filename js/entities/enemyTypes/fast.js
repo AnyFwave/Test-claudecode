@@ -7,6 +7,8 @@ const config = new EnemyTypeConfig({
   color: '#2ecc71',
   size: 8,
   behavior: 'zigzag',
+  minWave: 1,
+  weight: 1,
   initFn(enemy) {
     enemy.zigTimer = 0;
     enemy.zigAngle = 0;

@@ -1,5 +1,7 @@
 import { Enemy } from '../entities/Enemy.js';
+import { EnemyTypeRegistry } from '../entities/enemyTypes/EnemyTypeRegistry.js';
 import { EventBus } from '../core/EventBus.js';
+import { Spawner } from './Spawner.js';
 
 export class WaveManager {
   constructor(gameState) {
@@ -64,41 +66,42 @@ export class WaveManager {
   }
 
   _spawnEnemy() {
-    const types = ['basic', 'basic', 'basic', 'fast', 'tank'];
-    const availableTypes = [...types];
-
-    if (this.state.wave >= 3) availableTypes.push('sniper', 'swarm', 'swarm');
-    if (this.state.wave >= 5) availableTypes.push('shield', 'splitter');
-    if (this.state.wave >= 8) availableTypes.push('sniper', 'shield');
-
-    let type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
-
-    if (this.state.wave % 5 === 0 && this.enemiesSpawned === 0) type = 'boss';
-
+    const wave = this.state.wave;
     const cw = this.state.canvasWidth;
     const ch = this.state.canvasHeight;
     const margin = 50;
 
-    if (type === 'swarm') {
-      const count = 3 + Math.floor(Math.random() * 3);
+    // Boss on first spawn of every 5th wave
+    let type;
+    if (wave % 5 === 0 && this.enemiesSpawned === 0) {
+      const bosses = EnemyTypeRegistry.getBossTypes();
+      type = bosses.length > 0
+        ? bosses[Math.floor(Math.random() * bosses.length)]
+        : 'boss';
+    } else {
+      const pool = EnemyTypeRegistry.getSpawnPool(wave);
+      if (pool.length === 0) {
+        // Fallback if no types available at this wave
+        type = 'basic';
+      } else {
+        type = pool[Math.floor(Math.random() * pool.length)];
+      }
+    }
+
+    const config = EnemyTypeRegistry.get(type);
+    const groupMin = config ? config.groupMin : 1;
+    const groupMax = config ? config.groupMax : 1;
+
+    if (groupMin > 1 || groupMax > 1) {
+      const count = groupMin + Math.floor(Math.random() * (groupMax - groupMin + 1));
       for (let k = 0; k < count; k++) {
-        const { x, y } = this._randomEdgePos(cw, ch, margin);
-        this.state.addEnemy(new Enemy(x + k * 8, y + k * 8, 'swarm', this.state.wave));
+        const { x, y } = Spawner.getRandomEdgePosition(cw, ch, margin);
+        this.state.addEnemy(new Enemy(x + k * 8, y + k * 8, type, wave));
       }
       return;
     }
 
-    const { x, y } = this._randomEdgePos(cw, ch, margin);
-    this.state.addEnemy(new Enemy(x, y, type, this.state.wave));
-  }
-
-  _randomEdgePos(cw, ch, margin) {
-    const side = Math.floor(Math.random() * 4);
-    switch (side) {
-      case 0: return { x: Math.random() * cw, y: -margin };
-      case 1: return { x: cw + margin, y: Math.random() * ch };
-      case 2: return { x: Math.random() * cw, y: ch + margin };
-      case 3: return { x: -margin, y: Math.random() * ch };
-    }
+    const { x, y } = Spawner.getRandomEdgePosition(cw, ch, margin);
+    this.state.addEnemy(new Enemy(x, y, type, wave));
   }
 }

@@ -7,6 +7,10 @@ const config = new EnemyTypeConfig({
   color: '#f1c40f',
   size: 5,
   behavior: 'chase',
+  minWave: 3,
+  weight: 2,
+  groupMin: 3,
+  groupMax: 6,
   drawFn(enemy, ctx) {
     const s = enemy._size;
     const flash = enemy.hitFlash > 0;

@@ -1,5 +1,8 @@
 import { EnemyTypeConfig } from './EnemyTypeConfig.js';
 import { EnemyTypeRegistry } from './EnemyTypeRegistry.js';
+import { DamageInstance } from '../../sys/damage/DamageInstance.js';
+import { PHYSICAL } from '../../sys/damage/damageTypes.js';
+import { Bullet } from '../Bullet.js';
 
 const config = new EnemyTypeConfig({
   typeId: 'sniper',
@@ -7,10 +10,24 @@ const config = new EnemyTypeConfig({
   color: '#e67e22',
   size: 10,
   behavior: 'sniper',
+  minWave: 3,
+  weight: 1,
   initFn(enemy) {
     enemy.shootCooldown = 2.0;
     enemy.shootTimer = 1.5 + Math.random();
     enemy.preferredDist = 250;
+  },
+  updateFn(enemy, dt, playerX, playerY, gameState) {
+    if (enemy.shootTimer <= 0) {
+      enemy.shootTimer = enemy.shootCooldown;
+      const angle = Math.atan2(playerY - enemy.y, playerX - enemy.x);
+      const dmgInst = new DamageInstance({
+        baseValue: enemy.damage,
+        typeContributions: [{ type: PHYSICAL, proportion: 1.0 }]
+      });
+      const eb = new Bullet(enemy.x, enemy.y, angle, 300, dmgInst, 'sniper');
+      gameState.addEnemyBullet(eb);
+    }
   },
   drawFn(enemy, ctx) {
     const s = enemy._size;

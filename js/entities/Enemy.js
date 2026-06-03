@@ -40,7 +40,7 @@ export class Enemy {
   get xp() { return this.stats.get(STATS.XP_VALUE); }
   get damage() { return this.stats.get(STATS.COLLISION_DAMAGE); }
 
-  update(dt, playerX, playerY) {
+  update(dt, playerX, playerY, gameState) {
     this.animTimer += dt;
     if (this.animTimer > 0.2) {
       this.animTimer = 0;
@@ -114,7 +114,7 @@ export class Enemy {
     // Type-specific update
     const config = EnemyTypeRegistry.get(this.type);
     if (config && config.updateFn) {
-      config.updateFn(this, dt);
+      config.updateFn(this, dt, playerX, playerY, gameState);
     }
   }
 
