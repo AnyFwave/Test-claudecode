@@ -48,7 +48,7 @@ index.html → js/main.js（单入口）
 |------|------|
 | **Registry** | 武器、敌人类型、伤害类型、特性均通过静态注册表管理。新增内容仅需创建文件 + 导入注册，零核心文件修改 |
 | **EventBus** | 全局发布/订阅（`on`/`emit`/`off`），解耦波次通知、特性触发、UI 事件 |
-| **Strategy** | 武器开火行为各自独立为 `FireBehavior` 子类；敌人 AI 通过 `EnemyTypeConfig` 委托 |
+| **Strategy** | 武器开火行为各自独立为 `FireBehavior` 类；敌人 AI + 生成 + 死亡行为全部委托给 `EnemyTypeConfig` |
 | **Modifier Stack** | 所有属性通过 `base + [add|multiply|override]` 修饰器栈计算，带 `source` 追踪支持卸载 |
 
 ### 关键子系统
@@ -57,7 +57,8 @@ index.html → js/main.js（单入口）
 - **属性系统** (`sys/stats/`)：`StatBlock`（实体属性集）+ `StatModifier`（add/multiply/override），武器升级通过添加 StatModifier 实现，不修改 `WEAPON_DATA`
 - **特性/装备** (`sys/traits/`)：`ConditionEvaluator` 监听 EventBus（`bullet:hit`/`enemy:killed`/`player:damaged`），匹配特性条件并执行效果。装备携带特性，通过装备槽系统赋予玩家
 - **战斗系统** (`sys/combat/`)：4 条碰撞管线 — 玩家子弹 vs 敌人、敌人子弹 vs 玩家、体碰撞、爆炸 AoE
-- **波次管理** (`spawn/WaveManager.js`)：每 5 波 Boss，阶段结算，EventBus 通知
+- **波次管理** (`spawn/WaveManager.js`)：Registry 驱动的生成池，每 5 波 Boss，集群生成，阶段结算，EventBus 通知
+- **敌人系统** (`entities/enemyTypes/`)：`EnemyTypeConfig` 包含完整配置 — spawn（minWave/weight/isBoss/groupMin/groupMax）、AI（behavior/updateFn）、绘制（drawFn）、受伤（damageFn）、死亡（onDeathFn）
 
 ### 数据流
 
@@ -75,14 +76,34 @@ index.html → js/main.js（单入口）
 
 - `WEAPON_DATA` 是 `Object.freeze` 不可变的，升级时给玩家 StatBlock 添加 `damage_bonus_<type>` 修正器（source = `upgrade:damageAll`），每局独立不污染
 - 爆炸伤害使用固定值，不经过 DamagePipeline（避免双重计算）
-- 敌人的 AI/绘制/受伤全部委托给 `EnemyTypeConfig`，敌人自身不含类型特定逻辑
+- 敌人的 AI/绘制/受伤/死亡全部委托给 `EnemyTypeConfig`，敌人自身不含类型特定逻辑
+- `Game.js` 的 `onEnemyDeath()` 通过 `config.onDeathFn(enemy, ctx)` 调用类型特定死亡逻辑，ctx 提供 `spawnEnemy`/`spawnWeaponPickup`/`spawnEquipmentPickup` 回调
 
 ## 扩展方式
 
 新增内容**不需要修改核心文件**，只需创建新文件并在 `data/registries.js` 中导入：
 
-- **新武器**：在 `WeaponData.js` 添加定义 → 如需新开火行为，创建 `behaviors/XxxBehavior.js` 并注册
-- **新敌人**：创建 `enemyTypes/xxx.js` → `EnemyTypeRegistry.register()` → 在 `registries.js` 导入
-- **新伤害类型**：创建类型定义 → `DamageTypeRegistry.register()` → 在 `registries.js` 导入
-- **新特性**：在 `traitDefinitions.js` 创建 `Trait` → `TraitRegistry.register()`
-- **新装备**：在 `equipmentDefinitions.js` 创建 `Equipment` → `Game.registerEquipment()`
+### 新武器
+1. 在 `WeaponData.js` 的 `WEAPON_DEFINITIONS` 添加定义（5 级数据 + DamageProfile）
+2. 如需新开火行为，创建 `behaviors/XxxBehavior.js`，在 `registries.js` 中注册
+
+### 新敌人（仅需 2 步，零核心文件修改）
+1. 创建 `enemyTypes/xxx.js`，定义 `EnemyTypeConfig`（含全部配置）：
+   - 基础：`typeId`, `name`, `color`, `size`, `behavior`
+   - Spawn：`minWave`, `weight`, `isBoss`, `groupMin`, `groupMax`
+   - 钩子：`initFn`, `updateFn(enemy, dt, playerX, playerY, gameState)`, `damageFn`, `drawFn`, `onDeathFn(enemy, ctx)`
+   - 调用 `EnemyTypeRegistry.register('xxx', config)`
+2. 在 `registries.js` 中导入该文件
+
+`WaveManager` 自动通过 `EnemyTypeRegistry.getSpawnPool(wave)` 发现新类型，`Game.onEnemyDeath()` 自动调用 `onDeathFn`。
+
+**8 种现有敌人参考**：`js/entities/enemyTypes/basic.js`（最简单）、`js/entities/enemyTypes/sniper.js`（updateFn 射击）、`js/entities/enemyTypes/splitter.js`（onDeathFn 分裂）、`js/entities/enemyTypes/boss.js`（isBoss + onDeathFn 掉落）
+
+### 新伤害类型
+创建类型定义 → `DamageTypeRegistry.register()` → 在 `registries.js` 导入
+
+### 新特性
+在 `traitDefinitions.js` 创建 `Trait`（含 `conditions` 匹配 EventBus 事件）→ `TraitRegistry.register()`
+
+### 新装备
+在 `equipmentDefinitions.js` 创建 `Equipment`（含 `slot`, `statModifiers`, `traits`）→ `Game.registerEquipment()`
